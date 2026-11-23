@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AeroVision — Drone Marketplace & Telemetry Portal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="#" class="logo" onclick="switchTab('store')">AERO<span>VISION</span></a>
+      <ul class="nav-links">
+        <li><a href="#store" id="nav-store" class="active" onclick="switchTab('store')">Marketplace</a></li>
+        <li><a href="#supplier" id="nav-supplier" onclick="switchTab('supplier')">Supplier Portal</a></li>
+      </ul>
+      <div class="nav-actions">
+        <button class="cart-btn" onclick="toggleCartDrawer()">
+          🛒 Cart <span class="cart-count" id="cartCount">0</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- STOREFRONT TAB -->
+  <main id="view-store" class="tab-view active">
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="hero-content">
+        <span class="badge">Aviation Grade Telemetry</span>
+        <h1>NEXT-GEN <br><span class="highlight">AERIAL SYSTEMS</span></h1>
+        <p>Verified quadcopters with CAA compliance, hardware Remote ID signatures, and encrypted firmware telemetry.</p>
+        <button class="btn btn-primary" onclick="scrollToCatalog()">Browse Verified Fleet</button>
+      </div>
+    </section>
+
+    <!-- Catalog Section -->
+    <section class="catalog-section" id="catalog">
+      <div class="section-header">
+        <h2>VERIFIED DRONE MARKETPLACE</h2>
+        <p>All listed hardware is cryptographically verified against civil aviation specifications.</p>
+      </div>
+
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="filterCategory('ALL', this)">All Specs</button>
+        <button class="filter-btn" onclick="filterCategory('Pro Cinema', this)">Pro Cinema</button>
+        <button class="filter-btn" onclick="filterCategory('FPV Speedster', this)">FPV Speedster</button>
+        <button class="filter-btn" onclick="filterCategory('Enterprise', this)">Enterprise</button>
+      </div>
+
+      <div class="drone-grid" id="droneGrid">
+        <!-- Dynamic Cards Inserted Here -->
+      </div>
+    </section>
+  </main>
+
+  <!-- SUPPLIER PORTAL TAB -->
+  <main id="view-supplier" class="tab-view">
+    <section class="portal-section">
+      <div class="portal-container">
+        
+        <!-- Auth Container -->
+        <div id="supplier-auth-card" class="glass-card">
+          <div class="auth-toggle">
+            <button id="tab-btn-login" class="auth-tab-btn active" onclick="toggleAuthMode('login')">Supplier Login</button>
+            <button id="tab-btn-register" class="auth-tab-btn" onclick="toggleAuthMode('register')">Register Organization</button>
+          </div>
+
+          <!-- Login Form -->
+          <form id="form-login" onsubmit="handleLogin(event)">
+            <div class="form-group">
+              <label>Organization Email</label>
+              <input type="email" id="login-email" required placeholder="supplier@aero.com">
+            </div>
+            <div class="form-group">
+              <label>Password</label>
+              <input type="password" id="login-password" required placeholder="••••••••">
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Sign In to Console</button>
+          </form>
+
+          <!-- Register Form -->
+          <form id="form-register" style="display:none;" onsubmit="handleRegister(event)">
+            <div class="form-group">
+              <label>Company / Organization Name</label>
+              <input type="text" id="reg-company" required placeholder="AeroTech Industries">
+            </div>
+            <div class="form-group">
+              <label>Official Email</label>
+              <input type="email" id="reg-email" required placeholder="contact@aerotech.com">
+            </div>
+            <div class="form-group">
+              <label>CAA Operating License Number</label>
+              <input type="text" id="reg-caa-license" required placeholder="CAA-LIC-99882">
+            </div>
+            <div class="form-group">
+              <label>Country Code (ISO-2)</label>
+              <input type="text" id="reg-country" maxlength="2" required placeholder="US">
+            </div>
+            <div class="form-group">
+              <label>Password</label>
+              <input type="password" id="reg-password" required placeholder="••••••••">
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Complete Registration</button>
+          </form>
+        </div>
+
+        <!-- Registration & Telemetry Submission Form (Visible when authenticated) -->
+        <div id="supplier-dashboard" class="glass-card" style="display:none;">
+          <div class="dashboard-header">
+            <div>
+              <h3>SUPPLIER TELEMETRY REGISTRATION</h3>
+              <p>LoggedIn as: <strong id="session-company-name">--</strong> (<span id="session-caa-no">--</span>)</p>
+            </div>
+            <button class="btn btn-secondary" onclick="handleLogout()">Sign Out</button>
+          </div>
+
+          <form id="form-drone-reg" onsubmit="handleDroneRegistration(event)">
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Drone Model Name *</label>
+                <input type="text" id="drone-name" required placeholder="AeroX Predator V2">
+              </div>
+
+              <div class="form-group">
+                <label>Category *</label>
+                <select id="drone-category" required>
+                  <option value="Pro Cinema">Pro Cinema</option>
+                  <option value="FPV Speedster">FPV Speedster</option>
+                  <option value="Enterprise">Enterprise</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>Price (USD $) *</label>
+                <input type="number" step="0.01" id="drone-price" required placeholder="1499.00">
+              </div>
+
+              <div class="form-group">
+                <label>Hardware Remote ID (UUID/Serial) *</label>
+                <input type="text" id="drone-remote-id" required placeholder="RID-88392-X992-A">
+              </div>
+
+              <div class="form-group">
+                <label>CAA Aircraft Registration ID *</label>
+                <input type="text" id="drone-caa-id" required placeholder="REG-N99381-US">
+              </div>
+
+              <div class="form-group">
+                <label>Country of Origin (ISO) *</label>
+                <input type="text" id="drone-country" required placeholder="US">
+              </div>
+
+              <div class="form-group">
+                <label>Max Takeoff Mass (MTOM in kg) *</label>
+                <input type="number" step="0.01" id="drone-mtom" required placeholder="1.85">
+              </div>
+
+              <div class="form-group">
+                <label>Flight Controller Firmware Version *</label>
+                <input type="text" id="drone-firmware" required placeholder="v4.2.1-RELEASE">
+              </div>
+
+              <div class="form-group">
+                <label>Max Range (km) *</label>
+                <input type="number" step="0.1" id="drone-range" required placeholder="12.5">
+              </div>
+
+              <div class="form-group">
+                <label>Max Flight Time (minutes) *</label>
+                <input type="number" id="drone-flight-time" required placeholder="38">
+              </div>
+            </div>
+
+            <!-- Image Upload Options -->
+            <div class="form-group full-width" style="margin-top: 15px;">
+              <label>Drone Image Options</label>
+              <div class="image-upload-box">
+                <input type="file" id="drone-image-file" accept="image/*" onchange="previewSelectedImage(event)">
+                <p>Or paste Image Web URL:</p>
+                <input type="url" id="drone-image-url" placeholder="https://images.unsplash.com/photo-...">
+              </div>
+              <div id="image-preview-container" class="image-preview" style="display:none;">
+                <p>Selected Image Preview:</p>
+                <img id="img-preview" src="" alt="Preview">
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block" style="margin-top: 20px;">
+              ⚡ Verify Telemetry & Publish to Marketplace
+            </button>
+          </form>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <!-- Slide-Out Shopping Cart Drawer -->
+  <div id="cart-drawer" class="cart-drawer">
+    <div class="cart-header">
+      <h3>YOUR SHOPPING CART</h3>
+      <button class="close-btn" onclick="toggleCartDrawer()">&times;</button>
+    </div>
+    <div class="cart-body" id="cartItems">
+      <p class="empty-msg">Your cart is currently empty.</p>
+    </div>
+    <div class="cart-footer">
+      <div class="cart-total">
+        <span>Total:</span>
+        <strong id="cartTotal">$0.00</strong>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="checkout()">Proceed to Secure Checkout</button>
+    </div>
+  </div>
+
+  <!-- Admin / Dev Logs Drawer Toggle -->
+  <div class="admin-console-toggle">
+    <button class="btn-console" onclick="toggleDevConsole()">💻 Dev / Admin Logs</button>
+  </div>
+
+  <div id="dev-console" class="dev-console" style="display:none;">
+    <div class="console-header">
+      <span>SYSTEM TELEMETRY VERIFICATION TRACE</span>
+      <button onclick="toggleDevConsole()">&times;</button>
+    </div>
+    <pre id="console-output">> System initialized. Ready for API events...</pre>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
