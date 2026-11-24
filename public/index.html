@@ -98,7 +98,7 @@
             </div>
             <div class="form-group">
               <label>Country Code (ISO-2)</label>
-              <input type="text" id="reg-country" maxlength="2" required placeholder="US">
+              <input type="text" id="reg-country" maxlength="2" required placeholder="NG">
             </div>
             <div class="form-group">
               <label>Password</label>
@@ -145,13 +145,25 @@
               </div>
 
               <div class="form-group">
+                <label>Drone MAC Address *</label>
+                <input
+                  type="text"
+                  id="drone-mac-address"
+                  required
+                  pattern="^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$"
+                  title="Enter a valid MAC address (e.g., AA:BB:CC:DD:EE:FF)"
+                  placeholder="AA:BB:CC:DD:EE:FF"
+                >
+              </div>
+
+              <div class="form-group">
                 <label>CAA Aircraft Registration ID *</label>
-                <input type="text" id="drone-caa-id" required placeholder="REG-N99381-US">
+                <input type="text" id="drone-caa-id" required placeholder="REG-N99381-NG">
               </div>
 
               <div class="form-group">
                 <label>Country of Origin (ISO) *</label>
-                <input type="text" id="drone-country" required placeholder="US">
+                <input type="text" id="drone-country" required placeholder="NG">
               </div>
 
               <div class="form-group">
@@ -208,12 +220,30 @@
     <div class="cart-body" id="cartItems">
       <p class="empty-msg">Your cart is currently empty.</p>
     </div>
+
+    <!-- Buyer Details Section -->
+    <div id="buyer-checkout-form" style="padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.1); display: none;">
+      <h4 style="margin-bottom: 10px; font-size: 0.85rem; letter-spacing: 0.05em; color: #38bdf8;">BUYER VERIFICATION & DELIVERY</h4>
+      <div class="form-group" style="margin-bottom: 8px;">
+        <input type="text" id="buyer-name" placeholder="Full Name *" required style="width: 100%; padding: 8px; font-size: 0.85rem;">
+      </div>
+      <div class="form-group" style="margin-bottom: 8px;">
+        <input type="email" id="buyer-email" placeholder="Email Address *" required style="width: 100%; padding: 8px; font-size: 0.85rem;">
+      </div>
+      <div class="form-group" style="margin-bottom: 8px;">
+        <input type="tel" id="buyer-phone" placeholder="Phone Number (e.g. +234...) *" required style="width: 100%; padding: 8px; font-size: 0.85rem;">
+      </div>
+      <div class="form-group" style="margin-bottom: 4px;">
+        <textarea id="buyer-address" rows="2" placeholder="Delivery Address *" required style="width: 100%; padding: 8px; font-size: 0.85rem; resize: vertical;"></textarea>
+      </div>
+    </div>
+
     <div class="cart-footer">
       <div class="cart-total">
         <span>Total:</span>
         <strong id="cartTotal">$0.00</strong>
       </div>
-      <button class="btn btn-primary btn-block" onclick="checkout()">Proceed to Secure Checkout</button>
+      <button id="checkout-btn" class="btn btn-primary btn-block" onclick="checkout()">Proceed to Secure Checkout</button>
     </div>
   </div>
 

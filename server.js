@@ -38,15 +38,20 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Helper: Compute SHA-256 Telemetry Verification Hash
+// Helper: Compute SHA-256 Telemetry Verification Hash (now includes MAC address)
 function generateTelemetryHash(spec) {
-  const payload = `${spec.remote_id}|${spec.caa_registration_id}|${spec.country_of_origin}|${spec.max_takeoff_mass}|${spec.firmware_version}`;
+  const payload = `${spec.remote_id}|${spec.caa_registration_id}|${spec.drone_mac_address}|${spec.country_of_origin}|${spec.max_takeoff_mass}|${spec.firmware_version}`;
   return crypto.createHash('sha256').update(payload).digest('hex');
+}
+
+// Helper: Validate standard MAC Address format (e.g. AA:BB:CC:DD:EE:FF or AA-BB-CC-DD-EE-FF)
+function isValidMacAddress(mac) {
+  return /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/.test(mac.trim());
 }
 
 // ---------------- API ENDPOINTS ----------------
 
-// 1. Supplier Registration (Hashes password with bcrypt)
+// 1. Supplier Registration (Hashes password with bcryptjs)
 app.post('/api/supplier/register', async (req, res) => {
   const { company_name, email, password, caa_license_no, country_code } = req.body;
 
@@ -110,22 +115,32 @@ app.post('/api/supplier/login', async (req, res) => {
   }
 });
 
-// 3. Register & Verify Drone (Strict Telemetry Validation)
+// 3. Register & Verify Drone (Strict Telemetry Validation + Mandatory MAC Address)
 app.post('/api/drones/register', upload.single('drone_image'), async (req, res) => {
   const {
     supplier_id, model_name, category, price,
     remote_id, caa_registration_id, country_of_origin,
     max_takeoff_mass, firmware_version, max_range_km, max_flight_time_min,
-    image_url_input
+    drone_mac_address, image_url_input
   } = req.body;
 
-  // Enforce mandatory strict telemetry tracking specs
-  if (!remote_id || !caa_registration_id || !country_of_origin || !max_takeoff_mass || !firmware_version) {
+  // Enforce mandatory strict telemetry tracking specs + MAC Address
+  if (!remote_id || !caa_registration_id || !country_of_origin || !max_takeoff_mass || !firmware_version || !drone_mac_address) {
     return res.status(400).json({
       success: false,
-      message: 'Strict regulatory specs missing (Remote ID, CAA ID, Country of Origin, MTOM, Firmware).'
+      message: 'Strict regulatory specs missing (Remote ID, CAA ID, Drone MAC Address, Country of Origin, MTOM, Firmware).'
     });
   }
+
+  // Validate MAC Address format
+  if (!isValidMacAddress(drone_mac_address)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid Drone MAC Address format. Use AA:BB:CC:DD:EE:FF.'
+    });
+  }
+
+  const normalizedMac = drone_mac_address.trim().toUpperCase().replace(/-/g, ':');
 
   // Resolve Image Path
   let image_url = '/uploads/default-drone.png';
@@ -137,22 +152,27 @@ app.post('/api/drones/register', upload.single('drone_image'), async (req, res) 
 
   // Generate SHA-256 Telemetry Hash
   const verification_hash = generateTelemetryHash({
-    remote_id, caa_registration_id, country_of_origin, max_takeoff_mass, firmware_version
+    remote_id,
+    caa_registration_id,
+    drone_mac_address: normalizedMac,
+    country_of_origin,
+    max_takeoff_mass,
+    firmware_version
   });
 
   const sql = `
     INSERT INTO drones (
       supplier_id, model_name, category, price, remote_id, caa_registration_id,
       country_of_origin, max_takeoff_mass, firmware_version, max_range_km,
-      max_flight_time_min, image_url, verification_hash, status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'APPROVED')
+      max_flight_time_min, drone_mac_address, image_url, verification_hash, status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'APPROVED')
   `;
 
   const args = [
     supplier_id || 1, model_name, category || 'Pro Cinema', parseFloat(price),
     remote_id, caa_registration_id, country_of_origin, parseFloat(max_takeoff_mass),
     firmware_version, parseFloat(max_range_km), parseInt(max_flight_time_min),
-    image_url, verification_hash
+    normalizedMac, image_url, verification_hash
   ];
 
   try {
@@ -168,7 +188,7 @@ app.post('/api/drones/register', upload.single('drone_image'), async (req, res) 
     if (err.message && err.message.includes('UNIQUE')) {
       return res.status(400).json({
         success: false,
-        message: 'Drone Remote ID or CAA Registration ID already exists in system.'
+        message: 'Drone Remote ID, CAA Registration ID, or MAC Address already exists in system.'
       });
     }
     res.status(500).json({ success: false, message: err.message || 'Internal Server Error' });
@@ -182,6 +202,55 @@ app.get('/api/drones', async (req, res) => {
     res.json({ success: true, drones: result.rows });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 5. Capture Buyer Details on Checkout Click
+app.post('/api/checkout', async (req, res) => {
+  const {
+    drone_id,
+    drone_model,
+    total_amount,
+    buyer_name,
+    buyer_email,
+    buyer_phone,
+    buyer_address
+  } = req.body;
+
+  if (!buyer_name || !buyer_email || !buyer_phone || !buyer_address) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please provide your full name, email, phone number, and delivery address.'
+    });
+  }
+
+  try {
+    const sql = `
+      INSERT INTO buyer_orders (
+        drone_id, drone_model, total_amount, buyer_name, buyer_email, buyer_phone, buyer_address
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    const result = await db.execute({
+      sql,
+      args: [
+        drone_id || null,
+        drone_model || 'Marketplace Order',
+        parseFloat(total_amount) || 0,
+        buyer_name.trim(),
+        buyer_email.trim(),
+        buyer_phone.trim(),
+        buyer_address.trim()
+      ]
+    });
+
+    res.json({
+      success: true,
+      order_id: Number(result.lastInsertRowid),
+      message: 'Buyer details saved and checkout recorded successfully!'
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message || 'Failed to save checkout details.' });
   }
 });
 
