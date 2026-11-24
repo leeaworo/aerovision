@@ -4,9 +4,17 @@ const fs = require('fs');
 require('dotenv').config();
 
 const isProduction = process.env.VERCEL === '1';
-const dbPath = path.resolve(__dirname, '../database/drones.db');
 
-// Connect directly to Turso on Vercel, or replicate one-way to drones.db locally
+// Target path outside your project directory
+const targetDir = 'C:\\sky_shield\\dicon-offline-tiles';
+const dbPath = path.join(targetDir, 'dicon_registry.db');
+
+// Ensure C:\sky_shield\dicon-offline-tiles exists locally before connecting
+if (!isProduction && !fs.existsSync(targetDir)) {
+  fs.mkdirSync(targetDir, { recursive: true });
+}
+
+// Connect directly to Turso on Vercel, or replicate one-way to dicon_registry.db locally
 const db = createClient(
   isProduction
     ? {
@@ -25,7 +33,6 @@ const db = createClient(
 async function initDatabase() {
   try {
     if (isProduction) {
-      // Only run schema creation on Vercel (since local uses a Read-Only token)
       const schemaPath = path.resolve(__dirname, '../database/schema.sql');
       if (fs.existsSync(schemaPath)) {
         const schemaSql = fs.readFileSync(schemaPath, 'utf8');
@@ -33,7 +40,6 @@ async function initDatabase() {
         console.log('Database tables verified/created successfully.');
       }
     } else {
-      // Pull latest cloud changes into database/drones.db on startup
       await db.sync();
       console.log('Synced cloud database to local replica at:', dbPath);
     }
